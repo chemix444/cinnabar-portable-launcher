@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Tag for the release, like v1.0.0
+        required: true
+        default: v1.0.0
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Build
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: "0"
+        run: |
+          go vet ./...
+          go build -trimpath -ldflags "-s -w" -o Cinnabar-Launcher.exe .
+          sha256sum Cinnabar-Launcher.exe > SHA256SUMS.txt
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          sum=$(cut -d' ' -f1 SHA256SUMS.txt)
+          cat > notes.md <<NOTES
+          Download \`Cinnabar-Launcher.exe\`, put it in any folder you can write to, and run it. The first run downloads the latest official Cinnabar release into \`app\\\` next to it. Later runs update it when a new release is out, then start the game. No admin needed.
+
+          Windows SmartScreen may warn because the launcher isn't signed. Click "More info", then "Run anyway".
+
+          SHA-256 of \`Cinnabar-Launcher.exe\`: \`$sum\`
+          NOTES
+          gh release create "$VERSION" Cinnabar-Launcher.exe SHA256SUMS.txt \
+            --target "$GITHUB_SHA" --title "$VERSION" --notes-file notes.md
