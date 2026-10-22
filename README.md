@@ -22,7 +22,7 @@ Windows SmartScreen may warn that the launcher is unsigned. Click "More info", t
 
 If GitHub can't be reached, it starts the copy you already have. If Cinnabar is running during an update, the update is skipped until the next launch.
 
-Your sign-in, settings and worlds live in `%LOCALAPPDATA%\Cinnabar`, so deleting or moving the launcher folder doesn't touch them.
+Your sign-in, settings, worlds and prepared assets live in `data\` beside the launcher (it sets `CINNABAR_USER_ROOT`), so the whole folder is portable. Set `CINNABAR_USER_ROOT` yourself to keep them somewhere else. Keeping them out of `%LOCALAPPDATA%` also avoids `os error 4395` on managed PCs that redirect profile folders.
 
 ## Build
 

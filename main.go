@@ -191,12 +191,7 @@ func fail(err error) {
 // Cinnabar's first-run setup deletes these leftovers with Rust's remove_dir_all, which opens each
 // entry with OBJ_DONT_REPARSE and fails with os error 4395 on PCs whose profile folders go through
 // a redirecting filter driver. Go deletes by plain path, so clearing them here sidesteps that.
-func clearPrepareLeftovers() {
-	local := os.Getenv("LOCALAPPDATA")
-	if local == "" {
-		return
-	}
-	data := filepath.Join(local, "Cinnabar")
+func clearPrepareLeftovers(data string) {
 	leftovers := []string{filepath.Join(data, "prepare", ".local", "assets", "compiled")}
 	// The previous set is the only copy while the current one is missing, so keep it then.
 	if _, err := os.Stat(filepath.Join(data, "assets", "compiled")); err == nil {
@@ -226,12 +221,18 @@ func main() {
 		time.Sleep(2 * time.Second)
 	}
 
-	clearPrepareLeftovers()
+	// Keeping user data beside the launcher makes the install portable and keeps it out of
+	// %LOCALAPPDATA%, which managed PCs often redirect in ways first-run setup can't handle.
+	userRoot := os.Getenv("CINNABAR_USER_ROOT")
+	if userRoot == "" {
+		userRoot = filepath.Join(root, "data")
+	}
+	clearPrepareLeftovers(filepath.Join(userRoot, "data"))
 
 	cmd := exec.Command(client, os.Args[1:]...)
 	cmd.Dir = app
 	// The launcher owns updates; the client's own updater installs the per-machine MSI, which needs admin.
-	cmd.Env = append(os.Environ(), "CINNABAR_UPDATE_CHECK=0")
+	cmd.Env = append(os.Environ(), "CINNABAR_UPDATE_CHECK=0", "CINNABAR_USER_ROOT="+userRoot)
 	if err := cmd.Start(); err != nil {
 		fail(err)
 	}
