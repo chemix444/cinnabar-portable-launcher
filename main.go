@@ -188,6 +188,27 @@ func fail(err error) {
 	os.Exit(1)
 }
 
+// Cinnabar's first-run setup deletes these leftovers with Rust's remove_dir_all, which opens each
+// entry with OBJ_DONT_REPARSE and fails with os error 4395 on PCs whose profile folders go through
+// a redirecting filter driver. Go deletes by plain path, so clearing them here sidesteps that.
+func clearPrepareLeftovers() {
+	local := os.Getenv("LOCALAPPDATA")
+	if local == "" {
+		return
+	}
+	data := filepath.Join(local, "Cinnabar")
+	leftovers := []string{filepath.Join(data, "prepare", ".local", "assets", "compiled")}
+	// The previous set is the only copy while the current one is missing, so keep it then.
+	if _, err := os.Stat(filepath.Join(data, "assets", "compiled")); err == nil {
+		leftovers = append(leftovers, filepath.Join(data, "assets", "compiled.previous"))
+	}
+	for _, dir := range leftovers {
+		if err := os.RemoveAll(dir); err != nil {
+			fmt.Println("could not clear", dir+":", err)
+		}
+	}
+}
+
 func main() {
 	exe, err := os.Executable()
 	if err != nil {
@@ -204,6 +225,8 @@ func main() {
 		fmt.Println("update skipped:", err)
 		time.Sleep(2 * time.Second)
 	}
+
+	clearPrepareLeftovers()
 
 	cmd := exec.Command(client, os.Args[1:]...)
 	cmd.Dir = app
